@@ -1,0 +1,62 @@
+# Create Network
+networks:
+  nuxt_network:
+    name: nuxt_network
+    driver: bridge
+
+# Create Service
+services:
+  # MSSQL Service
+  mssql:
+    build:
+      context: MSSQL
+      dockerfile: Dockerfile
+    # image: mcr.microsoft.com/mssql/server:2019-latest
+    # image: "mcr.microsoft.com/mssql/server:2022-latest"
+    #image: mcr.microsoft.com/azure-sql-edge:latest # SQL Edge for Linux ARM container
+    platform: linux/x86_64
+    container_name: mssql_container
+    # environment:
+    #   - ACCEPT_EULA=1
+    #   - MSSQL_SA_PASSWORD=YourStrong@Passw0rd
+    #   - MSSQL_PID=Developer
+    ports:
+      - "1533:1433"
+    volumes:
+      - ./mssql_data:/var/opt/mssql
+    #  - ./init-scripts:/docker-entrypoint-initdb.d
+    # command: bash -c '/opt/mssql/bin/sqlservr & sleep 30s && /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '"'"'blognuxtprisma'"'"') BEGIN CREATE DATABASE blognuxtprisma END" && tail -f /dev/null'
+    # healthcheck:
+    #   test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q "SELECT 1" || exit 1
+    #   interval: 10s
+    #   timeout: 3s
+    #   retries: 10
+    #   start_period: 10s
+    restart: always
+    networks:
+      - nuxt_network
+  # Nuxt Service
+  nuxtapp:
+    build:
+      context: NUXT
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: nuxt_container
+    ports:
+      - "3310:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "sqlserver://mssql:1433;database=blognuxtprisma;user=sa;password=YourStrong@Passw0rd;trustServerCertificate=true"
+    # volumes:
+    #   - ./init-scripts:/docker-entrypoint-initdb.d
+    #   - .:/app
+    # command: /bin/bash /docker-entrypoint-initdb.d/init-prisma.sh
+    # depends_on:
+    #   mssql:
+    #     condition: service_healthy
+    restart: always
+    networks:
+      - nuxt_network
+
+volumes:
+  mssql_data:
